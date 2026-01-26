@@ -1,0 +1,76 @@
+-- PIMS Database Schema
+-- Emergency Pharmacy Hospital Segamat
+
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Table: inventory_items
+-- Master list of all drugs in the pharmacy
+CREATE TABLE IF NOT EXISTS inventory_items (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  type TEXT CHECK (type IN ('OPD', 'Eye/Ear/Nose/Inh', 'DDA', 'External', 'Injection', 'Syrup', 'Others', 'UOD', 'Non-Drug')),
+  section TEXT NOT NULL,
+  row TEXT NOT NULL,
+  bin TEXT NOT NULL,
+  location_code TEXT GENERATED ALWAYS AS (section || '-' || row || '-' || bin) STORED,
+  min_qty INTEGER DEFAULT 0,
+  max_qty INTEGER,
+  indent_source TEXT CHECK (indent_source IN ('OPD Counter', 'OPD Substore', 'IPD Counter', 'MNF Substor', 'Manufact', 'Prepacking', 'IPD Substore')),
+  remarks TEXT,
+  image_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Table: indent_requests
+-- Stores cart items and finalized orders
+CREATE TABLE IF NOT EXISTS indent_requests (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  item_id UUID REFERENCES inventory_items(id) ON DELETE CASCADE,
+  requested_qty TEXT NOT NULL,
+  status TEXT DEFAULT 'Pending' CHECK (status IN ('Pending', 'Approved', 'Completed')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_inventory_items_name ON inventory_items(name);
+CREATE INDEX IF NOT EXISTS idx_inventory_items_section ON inventory_items(section);
+CREATE INDEX IF NOT EXISTS idx_inventory_items_indent_source ON inventory_items(indent_source);
+CREATE INDEX IF NOT EXISTS idx_indent_requests_status ON indent_requests(status);
+CREATE INDEX IF NOT EXISTS idx_indent_requests_item_id ON indent_requests(item_id);
+
+-- Function to update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Triggers to auto-update updated_at
+CREATE TRIGGER update_inventory_items_updated_at
+  BEFORE UPDATE ON inventory_items
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_indent_requests_updated_at
+  BEFORE UPDATE ON indent_requests
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- Add Short Expiry Columns (Added by Migration)
+ALTER TABLE inventory_items 
+ADD COLUMN IF NOT EXISTS is_short_exp BOOLEAN DEFAULT false;
+
+ALTER TABLE inventory_items 
+ADD COLUMN IF NOT EXISTS short_exp DATE;
+
+
+-- Migration to Text for min/max qty (2)
+ALTER TABLE inventory_items 
+ALTER COLUMN min_qty TYPE TEXT USING min_qty::text,
+ALTER COLUMN min_qty DROP DEFAULT,
+ALTER COLUMN max_qty TYPE TEXT USING max_qty::text;
