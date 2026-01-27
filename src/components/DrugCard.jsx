@@ -1,7 +1,6 @@
 import React from 'react';
-import { Card, Tag, Typography } from 'antd';
-import { EnvironmentOutlined } from '@ant-design/icons';
-import { getTypeColor, getSourceColor } from '../lib/colorMappings';
+import { Card, Tag, Typography, Space } from 'antd';
+import { getSourceColor } from '../lib/colorMappings';
 
 const { Text } = Typography;
 
@@ -11,42 +10,47 @@ const DrugCard = ({ drug, onClick }) => {
         <Card
             hoverable
             onClick={onClick}
-            cover={
-                drug.image_url ? (
-                    <img
-                        alt={drug.name}
-                        src={drug.image_url}
-                        style={{ height: 200, objectFit: 'contain', backgroundColor: '#f5f5f5' }}
-                    />
-                ) : (
-                    <div
-                        style={{
-                            height: 200,
-                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'white',
-                            fontSize: '48px',
-                            fontWeight: 'bold',
-                        }}
-                    >
-                        {drug.location_code}
-                    </div>
-                )
-            }
             style={{ marginBottom: 16 }}
         >
             <Card.Meta
                 title={<Text strong>{drug.name}</Text>}
                 description={
                     <div style={{ marginTop: 8 }}>
-                        <div style={{ marginBottom: 8 }}>
-                            <Tag color={getTypeColor(drug.type)}>{drug.type}</Tag>
+                        <Space wrap size={[4, 4]} style={{ marginBottom: 8 }}>
+                            {drug.puchase_type && (
+                                <Tag color="blue">{drug.puchase_type}</Tag>
+                            )}
+                            {drug.std_kt && (
+                                <Tag color="green">{drug.std_kt}</Tag>
+                            )}
+                            {drug.indent_source && (
+                                <Tag color={getSourceColor(drug.indent_source)}>{drug.indent_source}</Tag>
+                            )}
+                        </Space>
+                        <div style={{ marginBottom: 4 }}>
+                            {drug.item_code && (
+                                <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>
+                                    Code: <Text strong>{drug.item_code}</Text>
+                                </Text>
+                            )}
+                            {drug.pku && (
+                                <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>
+                                    PKU: <Text strong>{drug.pku}</Text>
+                                </Text>
+                            )}
+                            {drug.row && (
+                                <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>
+                                    Row: <Text strong>{drug.row}</Text>
+                                </Text>
+                            )}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <EnvironmentOutlined style={{ color: '#1890ff' }} />
-                            <Text type="secondary">{drug.location_code}</Text>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                            <Text type="secondary" style={{ fontSize: '12px' }}>
+                                Max: <Text strong>{drug.max_qty || 'N/A'}</Text>
+                            </Text>
+                            <Text type="secondary" style={{ fontSize: '12px' }}>
+                                Balance: <Text strong>{drug.balance || 'N/A'}</Text>
+                            </Text>
                         </div>
                         {drug.remarks && (
                             <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginTop: 4 }}>

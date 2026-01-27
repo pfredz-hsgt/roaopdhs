@@ -9,16 +9,15 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS inventory_items (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
-  type TEXT CHECK (type IN ('OPD', 'Eye/Ear/Nose/Inh', 'DDA', 'External', 'Injection', 'Syrup', 'Others', 'UOD', 'Non-Drug')),
-  section TEXT NOT NULL,
-  row TEXT NOT NULL,
-  bin TEXT NOT NULL,
-  location_code TEXT GENERATED ALWAYS AS (section || '-' || row || '-' || bin) STORED,
-  min_qty INTEGER DEFAULT 0,
+  item_code TEXT,
+  pku TEXT,
+  puchase_type TEXT CHECK (puchase_type IN ('LP', 'APPL')),
+  std_kt TEXT CHECK (std_kt IN ('STD', 'KT')),
+  row TEXT,
   max_qty INTEGER,
+  balance INTEGER,
   indent_source TEXT CHECK (indent_source IN ('OPD Counter', 'OPD Substore', 'IPD Counter', 'MNF Substor', 'Manufact', 'Prepacking', 'IPD Substore')),
   remarks TEXT,
-  image_url TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -36,7 +35,6 @@ CREATE TABLE IF NOT EXISTS indent_requests (
 
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_inventory_items_name ON inventory_items(name);
-CREATE INDEX IF NOT EXISTS idx_inventory_items_section ON inventory_items(section);
 CREATE INDEX IF NOT EXISTS idx_inventory_items_indent_source ON inventory_items(indent_source);
 CREATE INDEX IF NOT EXISTS idx_indent_requests_status ON indent_requests(status);
 CREATE INDEX IF NOT EXISTS idx_indent_requests_item_id ON indent_requests(item_id);
@@ -67,10 +65,3 @@ ADD COLUMN IF NOT EXISTS is_short_exp BOOLEAN DEFAULT false;
 
 ALTER TABLE inventory_items 
 ADD COLUMN IF NOT EXISTS short_exp DATE;
-
-
--- Migration to Text for min/max qty (2)
-ALTER TABLE inventory_items 
-ALTER COLUMN min_qty TYPE TEXT USING min_qty::text,
-ALTER COLUMN min_qty DROP DEFAULT,
-ALTER COLUMN max_qty TYPE TEXT USING max_qty::text;

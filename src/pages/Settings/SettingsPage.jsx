@@ -4,7 +4,6 @@ import { DatabaseOutlined, CloudUploadOutlined, DownloadOutlined } from '@ant-de
 import * as XLSX from 'xlsx';
 import { supabase } from '../../lib/supabase';
 import InventoryTable from './InventoryTable';
-import ImageUploader from './ImageUploader';
 
 const { Title, Text } = Typography;
 
@@ -72,16 +71,6 @@ const SettingsPage = () => {
                 </span>
             ),
             children: <InventoryTable />,
-        },
-        {
-            key: 'images',
-            label: (
-                <span>
-                    <CloudUploadOutlined />
-                    Image Upload
-                </span>
-            ),
-            children: <ImageUploader />,
         },
     ];
 

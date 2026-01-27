@@ -23,16 +23,6 @@ const MainLayout = () => {
 
     const menuItems = [
         {
-            key: '/catalog',
-            icon: <SearchOutlined />,
-            label: 'Catalog',
-        },
-        {
-            key: '/floorplan',
-            icon: <PushpinOutlined />,
-            label: 'Floorplan',
-        },
-        {
             key: '/indent',
             icon: <FileTextOutlined />,
             label: 'Indent',

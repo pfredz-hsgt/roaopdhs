@@ -19,11 +19,10 @@ import {
     SearchOutlined,
     AppstoreOutlined,
     UnorderedListOutlined,
-    EnvironmentOutlined,
     TableOutlined,
 } from '@ant-design/icons';
 import { supabase } from '../../lib/supabase';
-import { getTypeColor, getSourceColor } from '../../lib/colorMappings';
+import { getSourceColor, getPuchaseTypeColor, getStdKtColor } from '../../lib/colorMappings';
 import DrugCard from '../../components/DrugCard2';
 import IndentModal from './IndentModal';
 import DebouncedSearchInput from '../../components/DebouncedSearchInput';
@@ -33,10 +32,8 @@ const { Title, Text } = Typography;
 const IndentPage = () => {
     const [drugs, setDrugs] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [selectedSection, setSelectedSection] = useState('ALL'); // 'ALL' or a specific section
     const [selectedDrug, setSelectedDrug] = useState(null);
     const [modalVisible, setModalVisible] = useState(false);
-    const [sections, setSections] = useState([]);
     const [indentSources, setIndentSources] = useState([]);
     const [selectedIndentSource, setSelectedIndentSource] = useState('ALL');
     const [currentPage, setCurrentPage] = useState(1);
@@ -49,60 +46,22 @@ const IndentPage = () => {
         setupRealtimeSubscription();
     }, []);
 
-    // Reset to first page when section changes or search query changes
+    // Reset to first page when search query changes or indent source changes
     useEffect(() => {
         setCurrentPage(1);
-    }, [selectedSection, searchQuery, selectedIndentSource]);
+    }, [searchQuery, selectedIndentSource]);
 
     const fetchDrugs = async () => {
         try {
             setLoading(true);
             const { data, error } = await supabase
                 .from('inventory_items')
-                .select('*');
+                .select('*')
+                .order('name', { ascending: true });
 
             if (error) throw error;
 
-            if (data) {
-                data.sort((a, b) => {
-                    // Handle null/undefined values
-                    if (!a.section || !b.section) return 0;
-                    if (!a.row || !b.row) return 0;
-                    if (!a.bin || !b.bin) return 0;
-
-                    // 1️⃣ Natural sort for section
-                    const secA = a.section.replace(/[0-9]/g, '');
-                    const secB = b.section.replace(/[0-9]/g, '');
-                    if (secA !== secB) return secA.localeCompare(secB);
-
-                    const secNumA = parseInt(a.section.replace(/[^0-9]/g, '')) || 0;
-                    const secNumB = parseInt(b.section.replace(/[^0-9]/g, '')) || 0;
-                    if (secNumA !== secNumB) return secNumA - secNumB;
-
-                    // 2️⃣ Natural sort for row
-                    const rowA = a.row.toString().replace(/[A-Za-z]/g, '');
-                    const rowB = b.row.toString().replace(/[A-Za-z]/g, '');
-                    if (!isNaN(rowA) && !isNaN(rowB) && rowA !== rowB) {
-                        return Number(rowA) - Number(rowB);
-                    }
-
-                    // 3️⃣ Natural sort for bin (M1, M2, M10)
-                    const binPrefixA = a.bin.replace(/[0-9]/g, '');
-                    const binPrefixB = b.bin.replace(/[0-9]/g, '');
-                    if (binPrefixA !== binPrefixB) return binPrefixA.localeCompare(binPrefixB);
-
-                    const binNumA = parseInt(a.bin.replace(/[^0-9]/g, ''));
-                    const binNumB = parseInt(b.bin.replace(/[^0-9]/g, ''));
-                    return binNumA - binNumB;
-                });
-            }
-
-
             setDrugs(data || []);
-
-            // Extract unique sections
-            const uniqueSections = [...new Set(data.map(d => d.section))].sort();
-            setSections(uniqueSections);
 
             // Extract unique indent sources
             const uniqueSources = [...new Set(data.map(d => d.indent_source).filter(Boolean))].sort();
@@ -141,11 +100,6 @@ const IndentPage = () => {
     const filteredDrugs = useMemo(() => {
         let result = drugs;
 
-        // Filter by section
-        if (selectedSection !== 'ALL') {
-            result = result.filter(drug => drug.section === selectedSection);
-        }
-
         // Filter by indent source
         if (selectedIndentSource !== 'ALL') {
             result = result.filter(drug => drug.indent_source === selectedIndentSource);
@@ -156,13 +110,14 @@ const IndentPage = () => {
             const query = searchQuery.toLowerCase();
             result = result.filter(drug =>
                 drug.name?.toLowerCase().includes(query) ||
-                drug.generic_name?.toLowerCase().includes(query) ||
-                drug.location_code?.toLowerCase().includes(query)
+                drug.item_code?.toLowerCase().includes(query) ||
+                drug.pku?.toLowerCase().includes(query) ||
+                drug.row?.toLowerCase().includes(query)
             );
         }
 
         return result;
-    }, [selectedSection, searchQuery, selectedIndentSource, drugs]);
+    }, [searchQuery, selectedIndentSource, drugs]);
 
     // Memoize paginated drugs
     const paginatedDrugs = useMemo(() => {
@@ -191,67 +146,85 @@ const IndentPage = () => {
     }, []);
 
     const columns = [
+
+        {
+            title: 'Item Code',
+            dataIndex: 'item_code',
+            key: 'item_code',
+            width: 120,
+            align: 'center',
+            render: (text) => (
+                <Text style={{ fontSize: '12px', color: '#cccccc' }}>{text}</Text>
+            ),
+        },
         {
             title: 'Name',
             dataIndex: 'name',
             key: 'name',
             sorter: (a, b) => a.name.localeCompare(b.name),
-            width: 500,
-            render: (text, record) => (
-                <Space direction="vertical" size={0}>
-                    <Text strong>{text}</Text>
-                    <Text type="secondary" style={{ fontSize: '11px' }}>{record.generic_name}</Text>
-                </Space>
-            ),
+            width: 300,
         },
         {
-            title: 'Type',
-            dataIndex: 'type',
-            key: 'type',
+            title: 'PKU',
+            dataIndex: 'pku',
+            key: 'pku',
             width: 120,
+            align: 'center',
+        },
+        {
+            title: 'Purchase Type',
+            dataIndex: 'puchase_type',
+            key: 'puchase_type',
+            width: 120,
+            align: 'center',
             filters: [
-                { text: 'OPD', value: 'OPD' },
-                { text: 'Eye/Ear/Nose/Inh', value: 'Eye/Ear/Nose/Inh' },
-                { text: 'DDA', value: 'DDA' },
-                { text: 'External', value: 'External' },
-                { text: 'Injection', value: 'Injection' },
-                { text: 'Syrup', value: 'Syrup' },
-                { text: 'Others', value: 'Others' },
-                { text: 'UOD', value: 'UOD' },
+                { text: 'LP', value: 'LP' },
+                { text: 'APPL', value: 'APPL' },
             ],
-            onFilter: (value, record) => record.type === value,
-            render: (type) => (
-                <Tag color={getTypeColor(type)}>
+            onFilter: (value, record) => record.puchase_type === value,
+            render: (type) => type && (
+                <Tag color={getPuchaseTypeColor(type)}>
                     {type}
                 </Tag>
             ),
         },
         {
-            title: 'Location',
-            dataIndex: 'location_code',
-            key: 'location_code',
-            sorter: (a, b) => a.location_code.localeCompare(b.location_code),
-            width: 120,
-            render: (text) => (
-                <Space size={4}>
-                    <EnvironmentOutlined style={{ color: '#1890ff' }} />
-                    {text}
-                </Space>
+            title: 'STD/KT',
+            dataIndex: 'std_kt',
+            key: 'std_kt',
+            width: 100,
+            align: 'center',
+            filters: [
+                { text: 'STD', value: 'STD' },
+                { text: 'KT', value: 'KT' },
+            ],
+            onFilter: (value, record) => record.std_kt === value,
+            render: (type) => type && (
+                <Tag color={getStdKtColor(type)}>
+                    {type}
+                </Tag>
             ),
         },
         {
-            title: 'Min',
-            dataIndex: 'min_qty',
-            key: 'min_qty',
-            width: 120,
+            title: 'Row',
+            dataIndex: 'row',
+            key: 'row',
+            width: 100,
+            align: 'center',
+        },
+        {
+            title: 'Max Qty',
+            dataIndex: 'max_qty',
+            key: 'max_qty',
+            width: 100,
             responsive: ['md'],
             align: 'center',
         },
         {
-            title: 'Max',
-            dataIndex: 'max_qty',
-            key: 'max_qty',
-            width: 120,
+            title: 'Balance',
+            dataIndex: 'balance',
+            key: 'balance',
+            width: 100,
             responsive: ['md'],
             align: 'center',
         },
@@ -260,6 +233,7 @@ const IndentPage = () => {
             dataIndex: 'indent_source',
             key: 'indent_source',
             width: 120,
+            align: 'center',
             render: (source) => source && (
                 <Tag color={getSourceColor(source)}>
                     {source}
@@ -288,29 +262,12 @@ const IndentPage = () => {
                     </Text>
                 </div>
 
-                {/* Section Filter */}
-                <Space wrap>
-                    <Button
-                        type={selectedSection === 'ALL' ? 'primary' : 'default'}
-                        onClick={() => setSelectedSection('ALL')}
-                    >
-                        All Sections
-                    </Button>
-                    {sections.map(section => (
-                        <Button
-                            key={section}
-                            type={selectedSection === section ? 'primary' : 'default'}
-                            onClick={() => setSelectedSection(section)}
-                        >
-                            Section {section}
-                        </Button>
-                    ))}
-                </Space>
+
 
                 {/* Search Bar and View Toggle */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
                     <DebouncedSearchInput
-                        placeholder="Search by name, generic name, or location..."
+                        placeholder="Search by name, item code, PKU, or row..."
                         prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
                         onSearch={setSearchQuery}
                         allowClear
@@ -467,27 +424,45 @@ const IndentPage = () => {
                                                 {drug.name}
                                             </Text>
                                             <Space wrap size={[4, 4]} style={{ marginBottom: '8px' }}>
-                                                <Tag color={getTypeColor(drug.type)} style={{ margin: 0, fontSize: '11px' }}>
-                                                    {drug.type}
-                                                </Tag>
+                                                {drug.puchase_type && (
+                                                    <Tag color={getPuchaseTypeColor(drug.puchase_type)} style={{ margin: 0, fontSize: '11px' }}>
+                                                        {drug.puchase_type}
+                                                    </Tag>
+                                                )}
+                                                {drug.std_kt && (
+                                                    <Tag color={getStdKtColor(drug.std_kt)} style={{ margin: 0, fontSize: '11px' }}>
+                                                        {drug.std_kt}
+                                                    </Tag>
+                                                )}
                                                 {drug.indent_source && (
                                                     <Tag color={getSourceColor(drug.indent_source)} style={{ margin: 0, fontSize: '11px' }}>
                                                         {drug.indent_source}
                                                     </Tag>
                                                 )}
                                             </Space>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                                                <EnvironmentOutlined style={{ color: '#1890ff', fontSize: '12px' }} />
-                                                <Text strong style={{ fontSize: '12px' }}>
-                                                    {drug.location_code}
-                                                </Text>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                                {drug.item_code && (
+                                                    <Text type="secondary" style={{ fontSize: '11px' }}>
+                                                        Code: <Text strong style={{ fontSize: '11px' }}>{drug.item_code}</Text>
+                                                    </Text>
+                                                )}
+                                                {drug.pku && (
+                                                    <Text type="secondary" style={{ fontSize: '11px' }}>
+                                                        PKU: <Text strong style={{ fontSize: '11px' }}>{drug.pku}</Text>
+                                                    </Text>
+                                                )}
                                             </div>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                                                <Text type="secondary" style={{ fontSize: '11px' }}>
-                                                    Min: <Text strong style={{ fontSize: '11px' }}>{drug.min_qty || 'N/A'}</Text>
-                                                </Text>
+                                                {drug.row && (
+                                                    <Text type="secondary" style={{ fontSize: '11px' }}>
+                                                        Row: <Text strong style={{ fontSize: '11px' }}>{drug.row}</Text>
+                                                    </Text>
+                                                )}
                                                 <Text type="secondary" style={{ fontSize: '11px' }}>
                                                     Max: <Text strong style={{ fontSize: '11px' }}>{drug.max_qty || 'N/A'}</Text>
+                                                </Text>
+                                                <Text type="secondary" style={{ fontSize: '11px' }}>
+                                                    Balance: <Text strong style={{ fontSize: '11px' }}>{drug.balance || 'N/A'}</Text>
                                                 </Text>
                                             </div>
                                             {drug.remarks && (

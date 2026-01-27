@@ -17,10 +17,9 @@ import {
     Row,
     Col,
 } from 'antd';
-import { EnvironmentOutlined, EditOutlined, FormOutlined } from '@ant-design/icons';
+import { EditOutlined, FormOutlined } from '@ant-design/icons';
 import { supabase } from '../../lib/supabase';
-import { getTypeColor } from '../../lib/colorMappings';
-import { getSourceColor } from '../../lib/colorMappings';
+import { getSourceColor, getPuchaseTypeColor, getStdKtColor } from '../../lib/colorMappings';
 import dayjs from 'dayjs';
 import CustomDateInput from '../../components/CustomDateInput';
 
@@ -31,7 +30,7 @@ const IndentModal = ({ drug, visible, onClose, onSuccess, onDrugUpdate }) => {
     const [form] = Form.useForm();
     const [editForm] = Form.useForm();
     const [loading, setLoading] = useState(false);
-    const [minQty, setMinQty] = useState(null);
+    const [balance, setBalance] = useState(null);
     const [maxQty, setMaxQty] = useState(null);
     const [indentSource, setIndentSource] = useState(null);
     const [isShortExp, setIsShortExp] = useState(false);
@@ -45,14 +44,18 @@ const IndentModal = ({ drug, visible, onClose, onSuccess, onDrugUpdate }) => {
     // Initialize state when drug changes
     useEffect(() => {
         if (drug) {
-            setMinQty(drug.min_qty);
+            setBalance(drug.balance);
             setMaxQty(drug.max_qty);
             setIndentSource(drug.indent_source);
             setIsShortExp(drug.is_short_exp || false);
             setShortExp(drug.short_exp ? dayjs(drug.short_exp) : null);
             setHasChanges(false);
+
+            // Auto-calculate indent quantity: max_qty - balance
+            const calculatedQty = calculateIndentQty(drug.max_qty, drug.balance);
+            form.setFieldsValue({ quantity: calculatedQty });
         }
-    }, [drug]);
+    }, [drug, form]);
 
     // Auto-focus quantity input when modal opens
     useEffect(() => {
@@ -70,9 +73,12 @@ const IndentModal = ({ drug, visible, onClose, onSuccess, onDrugUpdate }) => {
 
 
 
-    const handleMinQtyChange = (e) => {
-        const value = e && e.target ? e.target.value : e;
-        setMinQty(value);
+    const handleBalanceChange = (value) => {
+        setBalance(value);
+
+        // Recalculate indent quantity when balance changes
+        const calculatedQty = calculateIndentQty(maxQty, value);
+        form.setFieldsValue({ quantity: calculatedQty });
 
         if (debounceRef.current) clearTimeout(debounceRef.current);
         debounceRef.current = setTimeout(() => {
@@ -80,14 +86,25 @@ const IndentModal = ({ drug, visible, onClose, onSuccess, onDrugUpdate }) => {
         }, 500);
     };
 
-    const handleMaxQtyChange = (e) => {
-        const value = e && e.target ? e.target.value : e;
+    const handleMaxQtyChange = (value) => {
         setMaxQty(value);
+
+        // Recalculate indent quantity when max qty changes
+        const calculatedQty = calculateIndentQty(value, balance);
+        form.setFieldsValue({ quantity: calculatedQty });
 
         if (debounceRef.current) clearTimeout(debounceRef.current);
         debounceRef.current = setTimeout(() => {
             setHasChanges(true);
         }, 500);
+    };
+
+    // Helper function to calculate indent quantity
+    const calculateIndentQty = (maxQty, currentBalance) => {
+        const max = parseInt(maxQty) || 0;
+        const bal = parseInt(currentBalance) || 0;
+        const result = max - bal;
+        return result > 0 ? result.toString() : '0';
     };
 
     const handleIndentSourceChange = (value) => {
@@ -114,8 +131,8 @@ const IndentModal = ({ drug, visible, onClose, onSuccess, onDrugUpdate }) => {
             const { error } = await supabase
                 .from('inventory_items')
                 .update({
-                    min_qty: minQty,
                     max_qty: maxQty,
+                    balance: balance,
                     indent_source: indentSource,
                     is_short_exp: isShortExp,
                     short_exp: shortExp ? shortExp.format('YYYY-MM-DD') : null,
@@ -242,19 +259,36 @@ const IndentModal = ({ drug, visible, onClose, onSuccess, onDrugUpdate }) => {
                 <Space direction="vertical" size="large" style={{ width: '100%' }}>
                     {/* Drug Info */}
                     <div style={{ textAlign: 'center' }}>
-                        <Title level={4} style={{ marginBottom: 8 }}>
+                        <Title level={4} style={{ marginBottom: 4 }}>
                             {drug.name}
                         </Title>
-                        <Space>
-                            <Tag color={getSourceColor(drug.indent_source)}>{drug.indent_source}</Tag>
-                            <Space size="small">
-                                <EnvironmentOutlined style={{ color: '#1890ff' }} />
-                                <Text type="secondary">{drug.location_code}</Text>
-                            </Space>
+
+                        {/* Item Code and PKU */}
+                        <Space size="large" style={{ marginBottom: 12 }}>
+                            {drug.item_code && (
+                                <Text type="secondary" style={{ fontSize: '13px' }}>
+                                    Code: <Text strong>{drug.item_code}</Text>
+                                </Text>
+                            )}
+                            {drug.pku && (
+                                <Text type="secondary" style={{ fontSize: '13px' }}>
+                                    PKU: <Text strong>{drug.pku}</Text>
+                                </Text>
+                            )}
                         </Space>
+
+                        {/* Tags */}
+                        <Space wrap style={{ marginBottom: 8, justifyContent: 'center' }}>
+                            {drug.indent_source && <Tag color={getSourceColor(drug.indent_source)}>{drug.indent_source}</Tag>}
+                            {drug.puchase_type && <Tag color={getPuchaseTypeColor(drug.puchase_type)}>{drug.puchase_type}</Tag>}
+                            {drug.std_kt && <Tag color={getStdKtColor(drug.std_kt)}>{drug.std_kt}</Tag>}
+                            {drug.row && <Tag>Row: {drug.row}</Tag>}
+                        </Space>
+
+                        {/* Remarks */}
                         {drug.remarks && (
-                            <div style={{ marginTop: 8 }}>
-                                <Text style={{ fontSize: '14px' }}>
+                            <div style={{ marginTop: 8, padding: '8px 16px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                                <Text style={{ fontSize: '13px', fontStyle: 'italic' }}>
                                     {drug.remarks}
                                 </Text>
                             </div>
@@ -262,50 +296,66 @@ const IndentModal = ({ drug, visible, onClose, onSuccess, onDrugUpdate }) => {
                     </div>
 
                     {/* Editable Stock Info */}
-                    <div style={{ textAlign: 'center' }}>
-                        <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                            {hasChanges && (
+                    <div style={{
+                        backgroundColor: '#fafafa',
+                        padding: '16px',
+                        borderRadius: '8px',
+                        border: '1px solid #f0f0f0'
+                    }}>
+                        {hasChanges && (
+                            <div style={{ marginBottom: 12, textAlign: 'center' }}>
                                 <Text type="warning" style={{ fontSize: 12 }}>
-                                    (unsaved changes)
+                                    ⚠ Unsaved changes
                                 </Text>
-                            )}
-                        </div>
-                        <Row gutter={[16, 16]} justify="center">
-                            <Col xs={12} sm={6}>
-                                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
-                                    Min Qty
-                                </Text>
-                                <Input
-                                    value={minQty}
-                                    onChange={handleMinQtyChange}
-                                    placeholder="Min"
-                                    style={{ width: '100%' }}
-                                />
+                            </div>
+                        )}
+
+                        {/* Stock Information */}
+                        <Row gutter={[16, 16]}>
+                            <Col xs={12}>
+                                <div>
+                                    <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
+                                        Max Qty
+                                    </Text>
+                                    <InputNumber
+                                        value={maxQty}
+                                        onChange={handleMaxQtyChange}
+                                        placeholder="Max Qty"
+                                        style={{ width: '100%' }}
+                                        min={0}
+                                        size="large"
+                                    />
+                                </div>
                             </Col>
-                            <Col xs={12} sm={6}>
-                                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
-                                    Max Qty
-                                </Text>
-                                <Input
-                                    value={maxQty}
-                                    onChange={handleMaxQtyChange}
-                                    placeholder="Max"
-                                    style={{ width: '100%' }}
-                                />
+                            <Col xs={12}>
+                                <div>
+                                    <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
+                                        Balance
+                                    </Text>
+                                    <InputNumber
+                                        value={balance}
+                                        onChange={handleBalanceChange}
+                                        placeholder="Balance"
+                                        style={{ width: '100%' }}
+                                        min={0}
+                                        size="large"
+                                    />
+                                </div>
                             </Col>
                         </Row>
-                        <Row gutter={[16, 16]} justify="center">
 
-                            <Col xs={24} sm={12}>
-                                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+                        {/* Indent Source */}
+                        <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                            <Col xs={24}>
+                                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
                                     Indent From
                                 </Text>
                                 <Select
                                     value={indentSource}
                                     onChange={handleIndentSourceChange}
                                     style={{ width: '100%' }}
-                                    placeholder="Select"
-                                    size="middle"
+                                    placeholder="Select source"
+                                    size="large"
                                     virtual={false}
                                     showSearch={false}
                                     open={isIndentSourceDropdownOpen}
@@ -321,23 +371,20 @@ const IndentModal = ({ drug, visible, onClose, onSuccess, onDrugUpdate }) => {
                                 </Select>
                             </Col>
                         </Row>
-                        <Row gutter={[16, 16]} justify="center">
-                            <Col xs={24} sm={12}>
-                                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
-                                    Short Exp?
+
+                        {/* Short Expiry */}
+                        <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                            <Col xs={24}>
+                                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
+                                    Short Expiry
                                 </Text>
-                                <Space
-                                    style={{
-                                        width: '100%',
-                                        display: 'flex',
-                                        justifyContent: 'center',
-                                        alignItems: 'center',
-                                    }}
-                                >
+                                <Space style={{ width: '100%' }}>
                                     <Checkbox
                                         checked={isShortExp}
                                         onChange={handleShortExpChange}
-                                    />
+                                    >
+                                        Mark as short expiry
+                                    </Checkbox>
                                     {isShortExp && (
                                         <CustomDateInput
                                             value={shortExp}
@@ -346,7 +393,6 @@ const IndentModal = ({ drug, visible, onClose, onSuccess, onDrugUpdate }) => {
                                         />
                                     )}
                                 </Space>
-
                             </Col>
                         </Row>
                     </div>
@@ -420,57 +466,43 @@ const IndentModal = ({ drug, visible, onClose, onSuccess, onDrugUpdate }) => {
                         <Input placeholder="e.g., Paracetamol 500mg" />
                     </Form.Item>
 
-                    <Form.Item
-                        name="type"
-                        label="Type"
-                        rules={[{ required: true, message: 'Please select type' }]}
-                    >
-                        <Select placeholder="Select drug type" virtual={false}>
-                            <Select.Option value="OPD">OPD</Select.Option>
-                            <Select.Option value="Eye/Ear/Nose/Inh">Eye/Ear/Nose/Inh</Select.Option>
-                            <Select.Option value="DDA">DDA</Select.Option>
-                            <Select.Option value="External">External</Select.Option>
-                            <Select.Option value="Injection">Injection</Select.Option>
-                            <Select.Option value="Syrup">Syrup</Select.Option>
-                            <Select.Option value="Others">Others</Select.Option>
-                            <Select.Option value="UOD">UOD</Select.Option>
-                            <Select.Option value="Non-Drug">Non-Drug</Select.Option>
-                        </Select>
-                    </Form.Item>
-
                     <Space style={{ width: '100%' }} size="large">
-                        <Form.Item
-                            name="section"
-                            label="Section"
-                            rules={[{ required: true, message: 'Required' }]}
-                        >
-                            <Input placeholder="e.g., F" style={{ width: 100 }} />
+                        <Form.Item name="item_code" label="Item Code">
+                            <Input placeholder="e.g., ITEM001" style={{ width: 150 }} />
                         </Form.Item>
 
-                        <Form.Item
-                            name="row"
-                            label="Row"
-                            rules={[{ required: true, message: 'Required' }]}
-                        >
-                            <Input placeholder="e.g., 1" style={{ width: 100 }} />
-                        </Form.Item>
-
-                        <Form.Item
-                            name="bin"
-                            label="Bin"
-                            rules={[{ required: false, message: 'Required' }]}
-                        >
-                            <Input placeholder="e.g., 1" style={{ width: 100 }} />
+                        <Form.Item name="pku" label="PKU">
+                            <Input placeholder="e.g., PKU001" style={{ width: 150 }} />
                         </Form.Item>
                     </Space>
 
                     <Space style={{ width: '100%' }} size="large">
-                        <Form.Item name="min_qty" label="Min Quantity">
-                            <Input placeholder="e.g., 10 bot" style={{ width: 120 }} />
+                        <Form.Item name="puchase_type" label="Purchase Type">
+                            <Select placeholder="Select type" style={{ width: 150 }} virtual={false}>
+                                <Select.Option value="LP">LP</Select.Option>
+                                <Select.Option value="APPL">APPL</Select.Option>
+                            </Select>
+                        </Form.Item>
+
+                        <Form.Item name="std_kt" label="STD/KT">
+                            <Select placeholder="Select" style={{ width: 150 }} virtual={false}>
+                                <Select.Option value="STD">STD</Select.Option>
+                                <Select.Option value="KT">KT</Select.Option>
+                            </Select>
+                        </Form.Item>
+                    </Space>
+
+                    <Space style={{ width: '100%' }} size="large">
+                        <Form.Item name="row" label="Row">
+                            <Input placeholder="e.g., A1" style={{ width: 120 }} />
                         </Form.Item>
 
                         <Form.Item name="max_qty" label="Max Quantity">
-                            <Input placeholder="e.g., 50 bot" style={{ width: 120 }} />
+                            <InputNumber placeholder="Max Qty" style={{ width: 120 }} min={0} />
+                        </Form.Item>
+
+                        <Form.Item name="balance" label="Balance">
+                            <InputNumber placeholder="Balance" style={{ width: 120 }} min={0} />
                         </Form.Item>
                     </Space>
 
@@ -491,10 +523,6 @@ const IndentModal = ({ drug, visible, onClose, onSuccess, onDrugUpdate }) => {
                             rows={3}
                             placeholder="Any special notes or instructions..."
                         />
-                    </Form.Item>
-
-                    <Form.Item name="image_url" label="Image URL">
-                        <Input placeholder="https://..." />
                     </Form.Item>
                 </Form>
             </Modal>

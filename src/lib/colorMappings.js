@@ -1,20 +1,5 @@
-// Color mapping functions for drug types and indent sources
+// Color mapping functions for indent sources and new schema fields
 // Use these consistently across all components
-
-export const getTypeColor = (type) => {
-    const colors = {
-        'OPD': 'blue',
-        'Eye/Ear/Nose/Inh': 'cyan',
-        'DDA': 'red',
-        'External': 'green',
-        'Injection': 'magenta',
-        'Syrup': 'purple',
-        'Others': 'default',
-        'UOD': 'orange',
-        'Non-Drug': 'geekblue',
-    };
-    return colors[type] || 'default';
-};
 
 export const getSourceColor = (source) => {
     const colors = {
@@ -27,4 +12,20 @@ export const getSourceColor = (source) => {
         'IPD Substore': 'cyan',
     };
     return colors[source] || 'default';
+};
+
+export const getPuchaseTypeColor = (type) => {
+    const colors = {
+        'LP': 'blue',
+        'APPL': 'purple',
+    };
+    return colors[type] || 'default';
+};
+
+export const getStdKtColor = (type) => {
+    const colors = {
+        'STD': 'green',
+        'KT': 'orange',
+    };
+    return colors[type] || 'default';
 };

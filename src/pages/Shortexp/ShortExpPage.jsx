@@ -18,7 +18,7 @@ import {
 import dayjs from 'dayjs';
 import { supabase } from '../../lib/supabase';
 import IndentModal from '../Indent/IndentModal';
-import { getTypeColor, getSourceColor } from '../../lib/colorMappings';
+import { getSourceColor } from '../../lib/colorMappings';
 
 const { Title, Text } = Typography;
 
@@ -82,7 +82,8 @@ const ShortExpPage = () => {
                 <Space direction="vertical" size={2}>
                     <Text strong>{text}</Text>
                     <Space size="small">
-                        <Tag color={getTypeColor(record.type)} style={{ fontSize: '10px' }}>{record.type}</Tag>
+                        {record.puchase_type && <Tag color="blue" style={{ fontSize: '10px' }}>{record.puchase_type}</Tag>}
+                        {record.std_kt && <Tag color="green" style={{ fontSize: '10px' }}>{record.std_kt}</Tag>}
                         {record.indent_source && (
                             <Tag color={getSourceColor(record.indent_source)} style={{ fontSize: '10px' }}>{record.indent_source}</Tag>
                         )}
@@ -91,15 +92,10 @@ const ShortExpPage = () => {
             ),
         },
         {
-            title: 'Location',
-            dataIndex: 'location_code',
-            key: 'location_code',
-            render: (text) => (
-                <Space>
-                    <EnvironmentOutlined style={{ color: '#1890ff' }} />
-                    <Text>{text}</Text>
-                </Space>
-            ),
+            title: 'Row',
+            dataIndex: 'row',
+            key: 'row',
+            render: (text) => text && <Text>{text}</Text>,
             responsive: ['sm'],
         },
         {
@@ -226,7 +222,8 @@ const ShortExpPage = () => {
                                                     {drug.name}
                                                 </Text>
                                                 <Space size={[4, 4]} wrap>
-                                                    <Tag color={getTypeColor(drug.type)} style={{ margin: 0, fontSize: '10px' }}>{drug.type}</Tag>
+                                                    {drug.puchase_type && <Tag color="blue" style={{ margin: 0, fontSize: '10px' }}>{drug.puchase_type}</Tag>}
+                                                    {drug.std_kt && <Tag color="green" style={{ margin: 0, fontSize: '10px' }}>{drug.std_kt}</Tag>}
                                                     {drug.indent_source && (
                                                         <Tag color={getSourceColor(drug.indent_source)} style={{ margin: 0, fontSize: '10px' }}>{drug.indent_source}</Tag>
                                                     )}
@@ -239,10 +236,12 @@ const ShortExpPage = () => {
 
                                         {/* Details */}
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', color: 'rgba(0, 0, 0, 0.45)' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                <EnvironmentOutlined style={{ color: '#1890ff' }} />
-                                                <Text type="secondary">{drug.location_code}</Text>
-                                            </div>
+                                            {drug.row && (
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <EnvironmentOutlined style={{ color: '#1890ff' }} />
+                                                    <Text type="secondary">Row: {drug.row}</Text>
+                                                </div>
+                                            )}
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 <CalendarOutlined style={{ color: '#fa8c16' }} />
                                                 <Space>

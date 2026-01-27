@@ -139,40 +139,55 @@ const InventoryTable = () => {
             width: 200,
         },
         {
-            title: 'Type',
-            dataIndex: 'type',
-            key: 'type',
+            title: 'Item Code',
+            dataIndex: 'item_code',
+            key: 'item_code',
+            width: 100,
+        },
+        {
+            title: 'PKU',
+            dataIndex: 'pku',
+            key: 'pku',
+            width: 100,
+        },
+        {
+            title: 'Purchase Type',
+            dataIndex: 'puchase_type',
+            key: 'puchase_type',
             filters: [
-                { text: 'OPD', value: 'OPD' },
-                { text: 'Eye/Ear/Nose/Inh', value: 'Eye/Ear/Nose/Inh' },
-                { text: 'DDA', value: 'DDA' },
-                { text: 'External', value: 'External' },
-                { text: 'Injection', value: 'Injection' },
-                { text: 'Syrup', value: 'Syrup' },
-                { text: 'Others', value: 'Others' },
-                { text: 'UOD', value: 'UOD' },
-                { text: 'Non-Drug', value: 'Non-Drug' },
+                { text: 'LP', value: 'LP' },
+                { text: 'APPL', value: 'APPL' },
             ],
-            onFilter: (value, record) => record.type === value,
-            width: 120,
+            onFilter: (value, record) => record.puchase_type === value,
+            width: 100,
         },
         {
-            title: 'Location',
-            dataIndex: 'location_code',
-            key: 'location_code',
-            sorter: (a, b) => a.location_code.localeCompare(b.location_code),
-            width: 120,
+            title: 'STD/KT',
+            dataIndex: 'std_kt',
+            key: 'std_kt',
+            filters: [
+                { text: 'STD', value: 'STD' },
+                { text: 'KT', value: 'KT' },
+            ],
+            onFilter: (value, record) => record.std_kt === value,
+            width: 80,
         },
         {
-            title: 'Min Qty',
-            dataIndex: 'min_qty',
-            key: 'min_qty',
+            title: 'Row',
+            dataIndex: 'row',
+            key: 'row',
             width: 80,
         },
         {
             title: 'Max Qty',
             dataIndex: 'max_qty',
             key: 'max_qty',
+            width: 80,
+        },
+        {
+            title: 'Balance',
+            dataIndex: 'balance',
+            key: 'balance',
             width: 80,
         },
         {
@@ -189,7 +204,7 @@ const InventoryTable = () => {
                 { text: 'IPD Substore', value: 'IPD Substore' },
             ],
             onFilter: (value, record) => record.indent_source === value,
-            width: 80,
+            width: 120,
         },
         {
             title: 'Remarks',
@@ -231,8 +246,9 @@ const InventoryTable = () => {
         const query = searchQuery.toLowerCase();
         return (
             drug.name?.toLowerCase().includes(query) ||
-            drug.type?.toLowerCase().includes(query) ||
-            drug.location_code?.toLowerCase().includes(query) ||
+            drug.item_code?.toLowerCase().includes(query) ||
+            drug.pku?.toLowerCase().includes(query) ||
+            drug.row?.toLowerCase().includes(query) ||
             drug.remarks?.toLowerCase().includes(query)
         );
     });
@@ -259,7 +275,7 @@ const InventoryTable = () => {
         <div>
             <div style={{ marginBottom: 16, display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
                 <Input
-                    placeholder="Search by name, type, location, or remarks..."
+                    placeholder="Search by name, item code, PKU, row, or remarks..."
                     prefix={<SearchOutlined />}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -313,57 +329,58 @@ const InventoryTable = () => {
                         <Input placeholder="e.g., Paracetamol 500mg" />
                     </Form.Item>
 
-                    <Form.Item
-                        name="type"
-                        label="Type"
-                        rules={[{ required: true, message: 'Please select type' }]}
-                    >
-                        <Select placeholder="Select drug type">
-                            <Select.Option value="OPD">OPD</Select.Option>
-                            <Select.Option value="Eye/Ear/Nose/Inh">Eye/Ear/Nose/Inh</Select.Option>
-                            <Select.Option value="DDA">DDA</Select.Option>
-                            <Select.Option value="External">External</Select.Option>
-                            <Select.Option value="Injection">Injection</Select.Option>
-                            <Select.Option value="Syrup">Syrup</Select.Option>
-                            <Select.Option value="Others">Others</Select.Option>
-                            <Select.Option value="UOD">UOD</Select.Option>
-                            <Select.Option value="Non-Drug">Non-Drug</Select.Option>
-                        </Select>
-                    </Form.Item>
-
                     <Space style={{ width: '100%' }} size="large">
                         <Form.Item
-                            name="section"
-                            label="Section"
-                            rules={[{ required: true, message: 'Required' }]}
+                            name="item_code"
+                            label="Item Code"
                         >
-                            <Input placeholder="e.g., F" style={{ width: 100 }} />
+                            <Input placeholder="e.g., ITEM001" style={{ width: 150 }} />
                         </Form.Item>
 
                         <Form.Item
-                            name="row"
-                            label="Row"
-                            rules={[{ required: true, message: 'Required' }]}
+                            name="pku"
+                            label="PKU"
                         >
-                            <Input placeholder="e.g., 1" style={{ width: 100 }} />
-                        </Form.Item>
-
-                        <Form.Item
-                            name="bin"
-                            label="Bin"
-                            rules={[{ required: false, message: 'Required' }]}
-                        >
-                            <Input placeholder="e.g., 1" style={{ width: 100 }} />
+                            <Input placeholder="e.g., PKU001" style={{ width: 150 }} />
                         </Form.Item>
                     </Space>
 
                     <Space style={{ width: '100%' }} size="large">
-                        <Form.Item name="min_qty" label="Min Quantity">
-                            <Input placeholder="Min Qty" style={{ width: 120 }} />
+                        <Form.Item
+                            name="puchase_type"
+                            label="Purchase Type"
+                        >
+                            <Select placeholder="Select type" style={{ width: 150 }}>
+                                <Select.Option value="LP">LP</Select.Option>
+                                <Select.Option value="APPL">APPL</Select.Option>
+                            </Select>
+                        </Form.Item>
+
+                        <Form.Item
+                            name="std_kt"
+                            label="STD/KT"
+                        >
+                            <Select placeholder="Select" style={{ width: 150 }}>
+                                <Select.Option value="STD">STD</Select.Option>
+                                <Select.Option value="KT">KT</Select.Option>
+                            </Select>
+                        </Form.Item>
+                    </Space>
+
+                    <Space style={{ width: '100%' }} size="large">
+                        <Form.Item
+                            name="row"
+                            label="Row"
+                        >
+                            <Input placeholder="e.g., A1" style={{ width: 120 }} />
                         </Form.Item>
 
                         <Form.Item name="max_qty" label="Max Quantity">
-                            <Input placeholder="Max Qty" style={{ width: 120 }} />
+                            <InputNumber placeholder="Max Qty" style={{ width: 120 }} min={0} />
+                        </Form.Item>
+
+                        <Form.Item name="balance" label="Balance">
+                            <InputNumber placeholder="Balance" style={{ width: 120 }} min={0} />
                         </Form.Item>
                     </Space>
 
