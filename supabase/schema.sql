@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS inventory_items (
   row TEXT,
   max_qty INTEGER,
   balance INTEGER,
-  indent_source TEXT CHECK (indent_source IN ('OPD Counter', 'OPD Substore', 'IPD Counter', 'MNF Substor', 'Manufact', 'Prepacking', 'IPD Substore')),
+  indent_source TEXT CHECK (indent_source IN ('OPD Kaunter', 'OPD Substor', 'IPD Kaunter', 'MNF Substor', 'MNF Eksternal', 'MNF Internal', 'Prepacking', 'IPD Substor', 'HPSF Muar')),
   remarks TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()

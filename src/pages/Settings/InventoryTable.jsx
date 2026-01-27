@@ -195,13 +195,15 @@ const InventoryTable = () => {
             dataIndex: 'indent_source',
             key: 'indent_source',
             filters: [
-                { text: 'OPD Counter', value: 'OPD Counter' },
-                { text: 'OPD Substore', value: 'OPD Substore' },
-                { text: 'IPD Counter', value: 'IPD Counter' },
+                { text: 'OPD Kaunter', value: 'OPD Kaunter' },
+                { text: 'OPD Substor', value: 'OPD Substor' },
+                { text: 'IPD Kaunter', value: 'IPD Kaunter' },
+                { text: 'IPD Substor', value: 'IPD Substor' },
                 { text: 'MNF Substor', value: 'MNF Substor' },
-                { text: 'Manufact', value: 'Manufact' },
+                { text: 'MNF Eksternal', value: 'MNF Eksternal' },
+                { text: 'MNF Internal', value: 'MNF Internal' },
                 { text: 'Prepacking', value: 'Prepacking' },
-                { text: 'IPD Substore', value: 'IPD Substore' },
+                { text: 'HPSF Muar', value: 'HPSF Muar' },
             ],
             onFilter: (value, record) => record.indent_source === value,
             width: 120,
@@ -386,13 +388,15 @@ const InventoryTable = () => {
 
                     <Form.Item name="indent_source" label="Indent Source">
                         <Select placeholder="Select source">
-                            <Select.Option value="OPD Counter">OPD Counter</Select.Option>
-                            <Select.Option value="OPD Substore">OPD Substore</Select.Option>
-                            <Select.Option value="IPD Counter">IPD Counter</Select.Option>
+                            <Select.Option value="OPD Kaunter">OPD Kaunter</Select.Option>
+                            <Select.Option value="OPD Substor">OPD Substor</Select.Option>
+                            <Select.Option value="IPD Kaunter">IPD Kaunter</Select.Option>
+                            <Select.Option value="IPD Substor">IPD Substor</Select.Option>
                             <Select.Option value="MNF Substor">MNF Substor</Select.Option>
-                            <Select.Option value="Manufact">Manufact</Select.Option>
+                            <Select.Option value="MNF Eksternal">MNF Eksternal</Select.Option>
+                            <Select.Option value="MNF Internal">MNF Internal</Select.Option>
                             <Select.Option value="Prepacking">Prepacking</Select.Option>
-                            <Select.Option value="IPD Substore">IPD Substore</Select.Option>
+                            <Select.Option value="HPSF Muar">HPSF Muar</Select.Option>
                         </Select>
                     </Form.Item>
 

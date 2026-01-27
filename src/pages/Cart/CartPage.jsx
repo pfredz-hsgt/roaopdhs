@@ -12,11 +12,13 @@ import {
     message,
     Modal,
     Input,
+    InputNumber,
     Popconfirm,
     Select,
     Row,
     Col,
     Checkbox,
+    DatePicker,
 } from 'antd';
 import {
     FilePdfOutlined,
@@ -28,10 +30,12 @@ import {
     DeleteOutlined,
 } from '@ant-design/icons';
 import { supabase } from '../../lib/supabase';
-import { getSourceColor } from '../../lib/colorMappings';
+import { getSourceColor, getStdKtColor, getPuchaseTypeColor } from '../../lib/colorMappings';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import dayjs from 'dayjs';
+import CustomDateInput from '../../components/CustomDateInput';
 
 const { Title, Text } = Typography;
 const { Panel } = Collapse;
@@ -43,14 +47,47 @@ const CartPage = () => {
     const [groupedItems, setGroupedItems] = useState({});
     const [editingItem, setEditingItem] = useState(null);
     const [editQuantity, setEditQuantity] = useState('');
-    const [editMinQty, setEditMinQty] = useState('');
     const [editMaxQty, setEditMaxQty] = useState('');
     const [editIndentSource, setEditIndentSource] = useState('');
     const [editRemarks, setEditRemarks] = useState('');
+    const [editBalance, setEditBalance] = useState(null);
+    const [editIsShortExp, setEditIsShortExp] = useState(false);
+    const [editShortExp, setEditShortExp] = useState(null);
     const [hasChanges, setHasChanges] = useState(false);
     const [isIndentSourceDropdownOpen, setIsIndentSourceDropdownOpen] = useState(false);
     const [selectedSources, setSelectedSources] = useState([]);
     const debounceRef = useRef(null);
+
+    // Helper function to calculate indent quantity
+    const calculateIndentQty = (maxQty, currentBalance) => {
+        const max = parseInt(maxQty) || 0;
+        const bal = parseInt(currentBalance) || 0;
+        const result = max - bal;
+        return result > 0 ? result.toString() : '0';
+    };
+
+    const handleBalanceChange = (value) => {
+        setEditBalance(value);
+
+        // Recalculate indent quantity when balance changes
+        const calculatedQty = calculateIndentQty(editMaxQty, value);
+        setEditQuantity(calculatedQty);
+
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => {
+            setHasChanges(true);
+        }, 500);
+    };
+
+    const handleShortExpChange = (e) => {
+        setEditIsShortExp(e.target.checked);
+        setHasChanges(true);
+    };
+
+    const handleShortExpDateChange = (date) => {
+        setEditShortExp(date);
+        setHasChanges(true);
+    };
 
     useEffect(() => {
         fetchCartItems();
@@ -98,6 +135,15 @@ const CartPage = () => {
             grouped[source].push(item);
         });
 
+        // Sort items within each group by name A-Z
+        Object.keys(grouped).forEach(source => {
+            grouped[source].sort((a, b) => {
+                const nameA = a.inventory_items?.name || '';
+                const nameB = b.inventory_items?.name || '';
+                return nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
+            });
+        });
+
         setGroupedItems(grouped);
 
         // Initialize selected sources (all selected by default)
@@ -125,27 +171,23 @@ const CartPage = () => {
     const handleEdit = (item) => {
         setEditingItem(item);
         setEditQuantity(item.requested_qty);
-        setEditMinQty(item.inventory_items?.min_qty || '');
         setEditMaxQty(item.inventory_items?.max_qty || '');
+        setEditBalance(item.inventory_items?.balance);
         setEditIndentSource(item.inventory_items?.indent_source || '');
         setEditRemarks(item.inventory_items?.remarks || '');
+        setEditIsShortExp(item.inventory_items?.is_short_exp || false);
+        setEditShortExp(item.inventory_items?.short_exp ? dayjs(item.inventory_items.short_exp) : null);
         setHasChanges(false);
         setIsIndentSourceDropdownOpen(false);
     };
 
-    const handleMinQtyChange = (e) => {
-        const value = e && e.target ? e.target.value : e;
-        setEditMinQty(value);
 
-        if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => {
-            setHasChanges(true);
-        }, 500);
-    };
-
-    const handleMaxQtyChange = (e) => {
-        const value = e && e.target ? e.target.value : e;
+    const handleMaxQtyChange = (value) => {
         setEditMaxQty(value);
+
+        // Recalculate indent quantity when max qty changes
+        const calculatedQty = calculateIndentQty(value, editBalance);
+        setEditQuantity(calculatedQty);
 
         if (debounceRef.current) clearTimeout(debounceRef.current);
         debounceRef.current = setTimeout(() => {
@@ -184,10 +226,12 @@ const CartPage = () => {
             const { error: inventoryError } = await supabase
                 .from('inventory_items')
                 .update({
-                    min_qty: editMinQty,
                     max_qty: editMaxQty,
+                    balance: editBalance,
                     indent_source: editIndentSource,
                     remarks: editRemarks,
+                    is_short_exp: editIsShortExp,
+                    short_exp: editShortExp ? editShortExp.format('YYYY-MM-DD') : null,
                 })
                 .eq('id', editingItem.item_id);
 
@@ -402,7 +446,7 @@ const CartPage = () => {
                 // Generate the doc using our helper
                 const doc = generatePDFDocument(source, items);
                 const timestamp = new Date().toISOString().split('T')[0];
-                const filename = `Indent_ED_${source}_${timestamp}.pdf`;
+                const filename = `OPD_Indent_${source}_${timestamp}.pdf`;
 
                 if (mode === 'download') {
                     // A. DOWNLOAD MODE
@@ -653,12 +697,16 @@ const CartPage = () => {
                                                 <List.Item.Meta
                                                     title={
                                                         <Space>
+                                                            <Tag color={getStdKtColor(item.inventory_items?.std_kt)}>
+                                                                {item.inventory_items?.std_kt}
+                                                            </Tag>
                                                             <Text strong>{item.inventory_items?.name}</Text>
+                                                            <Text >| {item.inventory_items?.pku}</Text>
                                                         </Space>
                                                     }
                                                     description={
                                                         <Space direction="vertical" size="small">
-                                                            <Text>Quantity: <Text strong>{item.requested_qty}</Text></Text>
+                                                            <Text>Indent: <Text strong>{item.requested_qty}</Text></Text>
                                                         </Space>
                                                     }
                                                 />
@@ -688,96 +736,160 @@ const CartPage = () => {
                 <Space direction="vertical" size="large" style={{ width: '100%' }}>
                     {/* Drug Info */}
                     <div style={{ textAlign: 'center' }}>
-                        <Title level={4} style={{ marginBottom: 8 }}>
+                        <Title level={4} style={{ marginBottom: 4 }}>
                             {editingItem?.inventory_items?.name}
                         </Title>
-                        <Space>
-                            <Tag color={getSourceColor(editingItem?.inventory_items?.indent_source)}>
-                                {editingItem?.inventory_items?.indent_source}
-                            </Tag>
-                            <Space size="small">
-                                <EnvironmentOutlined style={{ color: '#1890ff' }} />
-                                <Text type="secondary">{editingItem?.inventory_items?.location_code}</Text>
-                            </Space>
+
+                        {/* Item Code and PKU */}
+                        <Space size="large" style={{ marginBottom: 12 }}>
+                            {editingItem?.inventory_items?.item_code && (
+                                <Text type="secondary" style={{ fontSize: '13px' }}>
+                                    Code: <Text strong>{editingItem?.inventory_items?.item_code}</Text>
+                                </Text>
+                            )}
+                            {editingItem?.inventory_items?.pku && (
+                                <Text type="secondary" style={{ fontSize: '13px' }}>
+                                    PKU: <Text strong>{editingItem?.inventory_items?.pku}</Text>
+                                </Text>
+                            )}
                         </Space>
+
+                        {/* Tags */}
+                        <Space wrap style={{ marginBottom: 8, justifyContent: 'center' }}>
+                            {editingItem?.inventory_items?.puchase_type && (
+                                <Tag color={getPuchaseTypeColor(editingItem.inventory_items.puchase_type)}>
+                                    {editingItem.inventory_items.puchase_type}
+                                </Tag>
+                            )}
+                            {editingItem?.inventory_items?.std_kt && (
+                                <Tag color={getStdKtColor(editingItem.inventory_items.std_kt)}>
+                                    {editingItem.inventory_items.std_kt}
+                                </Tag>
+                            )}
+                            {editingItem?.inventory_items?.row && <Tag>Row: {editingItem.inventory_items.row}</Tag>}
+                        </Space>
+
+                        {/* Remarks */}
+                        {editRemarks && (
+                            <div style={{ marginTop: 8, padding: '8px 16px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                                <Text style={{ fontSize: '13px', fontStyle: 'italic' }}>
+                                    {editRemarks}
+                                </Text>
+                            </div>
+                        )}
                     </div>
 
                     {/* Editable Stock Info */}
-                    <div style={{ textAlign: 'center' }}>
-                        <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                            {hasChanges && (
+                    <div style={{
+                        backgroundColor: '#fafafa',
+                        padding: '16px',
+                        borderRadius: '8px',
+                        border: '1px solid #f0f0f0'
+                    }}>
+                        {hasChanges && (
+                            <div style={{ marginBottom: 12, textAlign: 'center' }}>
                                 <Text type="warning" style={{ fontSize: 12 }}>
-                                    (unsaved changes)
+                                    ⚠ Unsaved changes
                                 </Text>
-                            )}
-                        </div>
-                        <Row gutter={[16, 16]} justify="center">
-                            <Col xs={12} sm={6}>
-                                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
-                                    Min Qty
-                                </Text>
-                                <Input
-                                    value={editMinQty}
-                                    onChange={handleMinQtyChange}
-                                    placeholder="Min"
-                                    style={{ width: '100%' }}
-                                />
+                            </div>
+                        )}
+
+                        {/* Stock Information */}
+                        <Row gutter={[16, 16]}>
+                            <Col xs={12}>
+                                <div>
+                                    <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
+                                        Max Qty
+                                    </Text>
+                                    <InputNumber
+                                        value={editMaxQty}
+                                        onChange={handleMaxQtyChange}
+                                        placeholder="Max Qty"
+                                        style={{ width: '100%' }}
+                                        min={0}
+                                        size="large"
+                                    />
+                                </div>
                             </Col>
-                            <Col xs={12} sm={6}>
-                                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
-                                    Max Qty
-                                </Text>
-                                <Input
-                                    value={editMaxQty}
-                                    onChange={handleMaxQtyChange}
-                                    placeholder="Max"
-                                    style={{ width: '100%' }}
-                                />
+                            <Col xs={12}>
+                                <div>
+                                    <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
+                                        Balance
+                                    </Text>
+                                    <InputNumber
+                                        value={editBalance}
+                                        onChange={handleBalanceChange}
+                                        placeholder="Balance"
+                                        style={{ width: '100%' }}
+                                        min={0}
+                                        size="large"
+                                    />
+                                </div>
                             </Col>
                         </Row>
-                        <Row gutter={[16, 16]} justify="center">
-                            <Col xs={24} sm={12}>
-                                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+
+                        {/* Indent Source */}
+                        <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                            <Col xs={24}>
+                                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
                                     Indent From
                                 </Text>
                                 <Select
                                     value={editIndentSource}
                                     onChange={handleIndentSourceChange}
                                     style={{ width: '100%' }}
-                                    placeholder="Select"
-                                    size="middle"
+                                    placeholder="Select source"
+                                    size="large"
                                     virtual={false}
+                                    showSearch={false}
                                     open={isIndentSourceDropdownOpen}
                                     onDropdownVisibleChange={(visible) => setIsIndentSourceDropdownOpen(visible)}
                                 >
-                                    <Select.Option value="OPD Counter">OPD Counter</Select.Option>
-                                    <Select.Option value="OPD Substore">OPD Substore</Select.Option>
-                                    <Select.Option value="IPD Counter">IPD Counter</Select.Option>
+                                    <Select.Option value="OPD Kaunter">OPD Kaunter</Select.Option>
+                                    <Select.Option value="OPD Substor">OPD Substor</Select.Option>
+                                    <Select.Option value="IPD Kaunter">IPD Kaunter</Select.Option>
+                                    <Select.Option value="IPD Substor">IPD Substor</Select.Option>
                                     <Select.Option value="MNF Substor">MNF Substor</Select.Option>
-                                    <Select.Option value="Manufact">Manufact</Select.Option>
+                                    <Select.Option value="MNF Eksternal">MNF Eksternal</Select.Option>
+                                    <Select.Option value="MNF Internal">MNF Internal</Select.Option>
                                     <Select.Option value="Prepacking">Prepacking</Select.Option>
-                                    <Select.Option value="IPD Substore">IPD Substore</Select.Option>
+                                    <Select.Option value="HPSF Muar">HPSF Muar</Select.Option>
                                 </Select>
+                            </Col>
+                        </Row>
+
+                        {/* Short Expiry */}
+                        <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                            <Col xs={24}>
+                                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
+                                    Short Expiry
+                                </Text>
+                                <Space style={{ width: '100%' }}>
+                                    <Checkbox
+                                        checked={editIsShortExp}
+                                        onChange={handleShortExpChange}
+                                    >
+                                        Mark as short expiry
+                                    </Checkbox>
+                                    {editIsShortExp && (
+                                        <CustomDateInput
+                                            value={editShortExp}
+                                            onChange={handleShortExpDateChange}
+                                            placeholder="DDMMYY"
+                                        />
+                                    )}
+                                </Space>
                             </Col>
                         </Row>
                     </div>
 
-                    {/* Remarks */}
-                    <div>
-                        <Text style={{ display: 'block', marginBottom: 8 }}>
-                            Remarks
-                        </Text>
-                        <Text type="secondary">
-                            {editRemarks || 'No remarks'}
-                        </Text>
-                    </div>
-
-                    {/* Indent Quantity */}
+                    {/* Indent Quantity Input */}
                     <div>
                         <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
                             Indent Quantity
                         </Text>
                         <Input
+                            autoFocus
                             value={editQuantity}
                             onChange={handleQuantityChange}
                             style={{ width: '100%' }}

@@ -34,12 +34,11 @@ const IndentPage = () => {
     const [loading, setLoading] = useState(true);
     const [selectedDrug, setSelectedDrug] = useState(null);
     const [modalVisible, setModalVisible] = useState(false);
-    const [indentSources, setIndentSources] = useState([]);
-    const [selectedIndentSource, setSelectedIndentSource] = useState('ALL');
+    const [indentRows, setIndentRows] = useState([]);
+    const [selectedIndentRow, setSelectedIndentRow] = useState('ALL');
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(24);
     const [searchQuery, setSearchQuery] = useState('');
-    const [viewMode, setViewMode] = useState('table'); // 'grid' or 'list' or 'table'
 
     useEffect(() => {
         fetchDrugs();
@@ -49,7 +48,7 @@ const IndentPage = () => {
     // Reset to first page when search query changes or indent source changes
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchQuery, selectedIndentSource]);
+    }, [searchQuery, selectedIndentRow]);
 
     const fetchDrugs = async () => {
         try {
@@ -63,9 +62,9 @@ const IndentPage = () => {
 
             setDrugs(data || []);
 
-            // Extract unique indent sources
-            const uniqueSources = [...new Set(data.map(d => d.indent_source).filter(Boolean))].sort();
-            setIndentSources(uniqueSources);
+            // Extract unique indent rows
+            const uniqueRows = [...new Set(data.map(d => d.row).filter(Boolean))].sort();
+            setIndentRows(uniqueRows);
         } catch (error) {
             console.error('Error fetching drugs:', error);
             message.error('Failed to load inventory items');
@@ -100,9 +99,9 @@ const IndentPage = () => {
     const filteredDrugs = useMemo(() => {
         let result = drugs;
 
-        // Filter by indent source
-        if (selectedIndentSource !== 'ALL') {
-            result = result.filter(drug => drug.indent_source === selectedIndentSource);
+        // Filter by indent row
+        if (selectedIndentRow !== 'ALL') {
+            result = result.filter(drug => drug.row === selectedIndentRow);
         }
 
         // Filter by search query
@@ -117,7 +116,7 @@ const IndentPage = () => {
         }
 
         return result;
-    }, [searchQuery, selectedIndentSource, drugs]);
+    }, [searchQuery, selectedIndentRow, drugs]);
 
     // Memoize paginated drugs
     const paginatedDrugs = useMemo(() => {
@@ -183,7 +182,7 @@ const IndentPage = () => {
             ],
             onFilter: (value, record) => record.puchase_type === value,
             render: (type) => type && (
-                <Tag color={getPuchaseTypeColor(type)}>
+                <Tag style={{ fontSize: '14px' }} color={getPuchaseTypeColor(type)}>
                     {type}
                 </Tag>
             ),
@@ -200,7 +199,7 @@ const IndentPage = () => {
             ],
             onFilter: (value, record) => record.std_kt === value,
             render: (type) => type && (
-                <Tag color={getStdKtColor(type)}>
+                <Tag style={{ fontSize: '14px' }} color={getStdKtColor(type)}>
                     {type}
                 </Tag>
             ),
@@ -235,7 +234,7 @@ const IndentPage = () => {
             width: 120,
             align: 'center',
             render: (source) => source && (
-                <Tag color={getSourceColor(source)}>
+                <Tag style={{ fontSize: '14px' }} color={getSourceColor(source)}>
                     {source}
                 </Tag>
             ),
@@ -275,36 +274,19 @@ const IndentPage = () => {
                         style={{ flex: '1 1 300px', minWidth: '200px' }}
                     />
                     <Select
-                        placeholder="Filter by Source"
+                        placeholder="Filter by Row"
                         style={{ width: 180 }}
                         size="large"
                         allowClear
-                        value={selectedIndentSource === 'ALL' ? null : selectedIndentSource}
-                        onChange={(value) => setSelectedIndentSource(value || 'ALL')}
+                        value={selectedIndentRow === 'ALL' ? null : selectedIndentRow}
+                        onChange={(value) => setSelectedIndentRow(value || 'ALL')}
                     >
-                        {indentSources.map(source => (
-                            <Select.Option key={source} value={source}>
-                                {source}
+                        {indentRows.map(row => (
+                            <Select.Option key={row} value={row}>
+                                {row}
                             </Select.Option>
                         ))}
                     </Select>
-                    <Space>
-                        <Button
-                            type={viewMode === 'grid' ? 'primary' : 'default'}
-                            icon={<AppstoreOutlined />}
-                            onClick={() => setViewMode('grid')}
-                        />
-                        <Button
-                            type={viewMode === 'list' ? 'primary' : 'default'}
-                            icon={<UnorderedListOutlined />}
-                            onClick={() => setViewMode('list')}
-                        />
-                        <Button
-                            type={viewMode === 'table' ? 'primary' : 'default'}
-                            icon={<TableOutlined />}
-                            onClick={() => setViewMode('table')}
-                        />
-                    </Space>
                 </div>
 
                 {/* Loading State */}
@@ -324,7 +306,7 @@ const IndentPage = () => {
                 )}
 
                 {/* Table View */}
-                {!loading && filteredDrugs.length > 0 && viewMode === 'table' && (
+                {!loading && filteredDrugs.length > 0 && (
                     <Table
                         columns={columns}
                         dataSource={filteredDrugs}
@@ -347,160 +329,7 @@ const IndentPage = () => {
                     />
                 )}
 
-                {/* Grid View */}
-                {!loading && filteredDrugs.length > 0 && viewMode === 'grid' && (
-                    <>
-                        <Row gutter={[16, 16]}>
-                            {paginatedDrugs.map((drug) => (
-                                <Col xs={24} sm={12} md={8} lg={6} key={drug.id}>
-                                    <DrugCard drug={drug} onClick={() => handleDrugClick(drug)} />
-                                </Col>
-                            ))}
-                        </Row>
-                        <div style={{ marginTop: 24, display: 'flex', justifyContent: 'center' }}>
-                            <Pagination
-                                current={currentPage}
-                                total={filteredDrugs.length}
-                                pageSize={pageSize}
-                                onChange={handlePageChange}
-                                onShowSizeChange={handlePageChange}
-                                showSizeChanger
-                                showTotal={(total) => `Total ${total} items`}
-                                pageSizeOptions={['12', '24', '48', '96']}
-                            />
-                        </div>
-                    </>
-                )}
 
-                {/* List View */}
-                {!loading && filteredDrugs.length > 0 && viewMode === 'list' && (
-                    <List
-                        grid={{
-                            gutter: 16,
-                            xs: 1,
-                            sm: 1,
-                            md: 2,
-                            lg: 2,
-                            xl: 3,
-                            xxl: 3,
-                        }}
-                        dataSource={filteredDrugs}
-                        pagination={{
-                            current: currentPage,
-                            pageSize: pageSize,
-                            total: filteredDrugs.length,
-                            onChange: handlePageChange,
-                            onShowSizeChange: handlePageChange,
-                            showSizeChanger: true,
-                            showTotal: (total) => `Total ${total} items`,
-                            pageSizeOptions: ['12', '24', '48', '96'],
-                        }}
-                        renderItem={(drug) => (
-                            <List.Item style={{ marginBottom: 8 }}>
-                                <div
-                                    style={{
-                                        cursor: 'pointer',
-                                        padding: '12px',
-                                        border: '1px solid #f0f0f0',
-                                        borderRadius: '8px',
-                                        transition: 'all 0.3s',
-                                        height: '100%',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                    }}
-                                    onClick={() => handleDrugClick(drug)}
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.borderColor = '#1890ff';
-                                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.borderColor = '#f0f0f0';
-                                        e.currentTarget.style.boxShadow = 'none';
-                                    }}
-                                >
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                            <Text strong style={{ fontSize: '14px', display: 'block', marginBottom: '8px' }}>
-                                                {drug.name}
-                                            </Text>
-                                            <Space wrap size={[4, 4]} style={{ marginBottom: '8px' }}>
-                                                {drug.puchase_type && (
-                                                    <Tag color={getPuchaseTypeColor(drug.puchase_type)} style={{ margin: 0, fontSize: '11px' }}>
-                                                        {drug.puchase_type}
-                                                    </Tag>
-                                                )}
-                                                {drug.std_kt && (
-                                                    <Tag color={getStdKtColor(drug.std_kt)} style={{ margin: 0, fontSize: '11px' }}>
-                                                        {drug.std_kt}
-                                                    </Tag>
-                                                )}
-                                                {drug.indent_source && (
-                                                    <Tag color={getSourceColor(drug.indent_source)} style={{ margin: 0, fontSize: '11px' }}>
-                                                        {drug.indent_source}
-                                                    </Tag>
-                                                )}
-                                            </Space>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                                                {drug.item_code && (
-                                                    <Text type="secondary" style={{ fontSize: '11px' }}>
-                                                        Code: <Text strong style={{ fontSize: '11px' }}>{drug.item_code}</Text>
-                                                    </Text>
-                                                )}
-                                                {drug.pku && (
-                                                    <Text type="secondary" style={{ fontSize: '11px' }}>
-                                                        PKU: <Text strong style={{ fontSize: '11px' }}>{drug.pku}</Text>
-                                                    </Text>
-                                                )}
-                                            </div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                                                {drug.row && (
-                                                    <Text type="secondary" style={{ fontSize: '11px' }}>
-                                                        Row: <Text strong style={{ fontSize: '11px' }}>{drug.row}</Text>
-                                                    </Text>
-                                                )}
-                                                <Text type="secondary" style={{ fontSize: '11px' }}>
-                                                    Max: <Text strong style={{ fontSize: '11px' }}>{drug.max_qty || 'N/A'}</Text>
-                                                </Text>
-                                                <Text type="secondary" style={{ fontSize: '11px' }}>
-                                                    Balance: <Text strong style={{ fontSize: '11px' }}>{drug.balance || 'N/A'}</Text>
-                                                </Text>
-                                            </div>
-                                            {drug.remarks && (
-                                                <Text
-                                                    type="secondary"
-                                                    style={{
-                                                        fontSize: '11px',
-                                                        display: 'block',
-                                                        overflow: 'hidden',
-                                                        textOverflow: 'ellipsis',
-                                                        whiteSpace: 'nowrap'
-                                                    }}
-                                                    title={drug.remarks}
-                                                >
-                                                    {drug.remarks}
-                                                </Text>
-                                            )}
-                                        </div>
-                                        {drug.image_url && (
-                                            <img
-                                                width={60}
-                                                height={60}
-                                                alt={drug.name}
-                                                src={drug.image_url}
-                                                style={{
-                                                    borderRadius: 4,
-                                                    objectFit: 'contain',
-                                                    backgroundColor: '#f5f5f5',
-                                                    flexShrink: 0
-                                                }}
-                                            />
-                                        )}
-                                    </div>
-                                </div>
-                            </List.Item>
-                        )}
-                    />
-                )}
             </Space>
 
             {/* Indent Modal */}

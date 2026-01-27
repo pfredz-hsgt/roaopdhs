@@ -19,7 +19,7 @@ import {
     EyeOutlined,
 } from '@ant-design/icons';
 import { supabase } from '../../lib/supabase';
-import { getSourceColor } from '../../lib/colorMappings';
+import { getSourceColor, getStdKtColor } from '../../lib/colorMappings';
 import dayjs from 'dayjs';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -178,7 +178,7 @@ const IndentListPage = () => {
             // Table Data mapping
             const tableData = items.map((item, idx) => [
                 (idx + 1).toString(),
-                item.inventory_items?.name || '',
+                (item.inventory_items?.name || '') + (item.inventory_items?.pku ? ` | ${item.inventory_items.pku}` : ''),
                 item.requested_qty || 0,
                 '',
                 '',
@@ -288,7 +288,7 @@ const IndentListPage = () => {
                 // Generate the doc using our helper
                 const doc = generatePDFDocument(source, items);
                 const timestamp = new Date().toISOString().split('T')[0];
-                const filename = `Indent_ED_${source}_${timestamp}.pdf`;
+                const filename = `OPD_Indent_${source}_${timestamp}.pdf`;
 
                 if (mode === 'download') {
                     // A. DOWNLOAD MODE
@@ -466,13 +466,9 @@ const IndentListPage = () => {
                                                     description={
                                                         <Space direction="vertical" size="small">
                                                             <Space wrap>
-                                                                <Tag color={getTypeColor(item.inventory_items?.type)}>
-                                                                    {item.inventory_items?.type}
+                                                                <Tag color={getStdKtColor(item.inventory_items?.std_kt)}>
+                                                                    {item.inventory_items?.std_kt}
                                                                 </Tag>
-                                                                <Space size="small">
-                                                                    <EnvironmentOutlined style={{ color: '#1890ff' }} />
-                                                                    <Text type="secondary">{item.inventory_items?.location_code}</Text>
-                                                                </Space>
                                                             </Space>
                                                             <Text>Quantity: <Text strong>{item.requested_qty}</Text></Text>
                                                             <Text type="secondary" style={{ fontSize: 11 }}>

@@ -279,7 +279,6 @@ const IndentModal = ({ drug, visible, onClose, onSuccess, onDrugUpdate }) => {
 
                         {/* Tags */}
                         <Space wrap style={{ marginBottom: 8, justifyContent: 'center' }}>
-                            {drug.indent_source && <Tag color={getSourceColor(drug.indent_source)}>{drug.indent_source}</Tag>}
                             {drug.puchase_type && <Tag color={getPuchaseTypeColor(drug.puchase_type)}>{drug.puchase_type}</Tag>}
                             {drug.std_kt && <Tag color={getStdKtColor(drug.std_kt)}>{drug.std_kt}</Tag>}
                             {drug.row && <Tag>Row: {drug.row}</Tag>}
@@ -361,13 +360,15 @@ const IndentModal = ({ drug, visible, onClose, onSuccess, onDrugUpdate }) => {
                                     open={isIndentSourceDropdownOpen}
                                     onDropdownVisibleChange={(visible) => setIsIndentSourceDropdownOpen(visible)}
                                 >
-                                    <Select.Option value="OPD Counter">OPD Counter</Select.Option>
-                                    <Select.Option value="OPD Substore">OPD Substore</Select.Option>
-                                    <Select.Option value="IPD Counter">IPD Counter</Select.Option>
+                                    <Select.Option value="OPD Kaunter">OPD Kaunter</Select.Option>
+                                    <Select.Option value="OPD Substor">OPD Substor</Select.Option>
+                                    <Select.Option value="IPD Kaunter">IPD Kaunter</Select.Option>
+                                    <Select.Option value="IPD Substor">IPD Substor</Select.Option>
                                     <Select.Option value="MNF Substor">MNF Substor</Select.Option>
-                                    <Select.Option value="Manufact">Manufact</Select.Option>
+                                    <Select.Option value="MNF Eksternal">MNF Eksternal</Select.Option>
+                                    <Select.Option value="MNF Internal">MNF Internal</Select.Option>
                                     <Select.Option value="Prepacking">Prepacking</Select.Option>
-                                    <Select.Option value="IPD Substore">IPD Substore</Select.Option>
+                                    <Select.Option value="HPSF Muar">HPSF Muar</Select.Option>
                                 </Select>
                             </Col>
                         </Row>
@@ -508,13 +509,15 @@ const IndentModal = ({ drug, visible, onClose, onSuccess, onDrugUpdate }) => {
 
                     <Form.Item name="indent_source" label="Indent Source">
                         <Select placeholder="Select source" virtual={false}>
-                            <Select.Option value="OPD Counter">OPD Counter</Select.Option>
-                            <Select.Option value="OPD Substore">OPD Substore</Select.Option>
-                            <Select.Option value="IPD Counter">IPD Counter</Select.Option>
+                            <Select.Option value="OPD Kaunter">OPD Kaunter</Select.Option>
+                            <Select.Option value="OPD Substor">OPD Substor</Select.Option>
+                            <Select.Option value="IPD Kaunter">IPD Kaunter</Select.Option>
+                            <Select.Option value="IPD Substor">IPD Substor</Select.Option>
                             <Select.Option value="MNF Substor">MNF Substor</Select.Option>
-                            <Select.Option value="Manufact">Manufact</Select.Option>
+                            <Select.Option value="MNF Eksternal">MNF Eksternal</Select.Option>
+                            <Select.Option value="MNF Internal">MNF Internal</Select.Option>
                             <Select.Option value="Prepacking">Prepacking</Select.Option>
-                            <Select.Option value="IPD Substore">IPD Substore</Select.Option>
+                            <Select.Option value="HPSF Muar">HPSF Muar</Select.Option>
                         </Select>
                     </Form.Item>
 
