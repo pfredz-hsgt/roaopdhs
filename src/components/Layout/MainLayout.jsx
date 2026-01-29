@@ -157,6 +157,7 @@ const MainLayout = () => {
 
             <Layout style={{ marginLeft: collapsed ? 0 : 200 }}>
                 <Header
+                    className="site-header"
                     style={{
                         padding: '0 16px',
                         background: '#fff',
@@ -178,7 +179,7 @@ const MainLayout = () => {
                     </Title>
                     <div />
                 </Header>
-                <Content style={{ margin: '24px 16px', overflow: 'initial' }}>
+                <Content className="site-content" style={{ margin: '24px 16px', overflow: 'initial' }}>
                     <div style={{ padding: 24, background: '#fff', minHeight: 360, borderRadius: 8 }}>
                         <Outlet />
                     </div>
@@ -197,6 +198,17 @@ const MainLayout = () => {
         @media (max-width: 991px) {
           .desktop-sider {
             display: none !important;
+          }
+          .site-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            width: 100%;
+          }
+          .site-content {
+            margin-top: 88px !important; /* 64px header + 24px existing top margin */
           }
         }
       `}</style>

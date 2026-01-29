@@ -16,6 +16,7 @@ import {
     DatePicker,
     Row,
     Col,
+    Drawer,
 } from 'antd';
 import { EditOutlined, FormOutlined } from '@ant-design/icons';
 import { supabase } from '../../lib/supabase';
@@ -26,7 +27,7 @@ import CustomDateInput from '../../components/CustomDateInput';
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
-const IndentModal = ({ drug, visible, onClose, onSuccess, onDrugUpdate }) => {
+const IndentModal = ({ drug, visible, onClose, onSuccess, onDrugUpdate, width = 500 }) => {
     const [form] = Form.useForm();
     const [editForm] = Form.useForm();
     const [loading, setLoading] = useState(false);
@@ -159,11 +160,22 @@ const IndentModal = ({ drug, visible, onClose, onSuccess, onDrugUpdate }) => {
         onClose(false);
     };
 
+    const handleQuantityChange = (value) => {
+        if (value === 0) {
+            message.warning('Quantity must be at least 1');
+        }
+    };
+
     const handleSubmit = async (values) => {
         try {
             setLoading(true);
 
-
+            // Validate quantity is not 0
+            if (!values.quantity || values.quantity === 0) {
+                message.error('Quantity must be at least 1');
+                setLoading(false);
+                return;
+            }
 
             const { error } = await supabase
                 .from('indent_requests')
@@ -235,12 +247,11 @@ const IndentModal = ({ drug, visible, onClose, onSuccess, onDrugUpdate }) => {
 
     return (
         <>
-            <Modal
+            <Drawer
                 open={visible}
-                onCancel={handleClose}
-                destroyOnHidden
+                onClose={handleClose}
+                mask={false}
                 zIndex={1000}
-                centered
                 title={
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: 24 }}>
                         <span>Add to Indent</span>
@@ -255,7 +266,8 @@ const IndentModal = ({ drug, visible, onClose, onSuccess, onDrugUpdate }) => {
                     </div>
                 }
                 footer={null}
-                width={450}
+                width={width}
+                placement="right"
             >
                 <Space direction="vertical" size="large" style={{ width: '100%' }}>
                     {/* Drug Info */}
@@ -413,13 +425,24 @@ const IndentModal = ({ drug, visible, onClose, onSuccess, onDrugUpdate }) => {
                             label="Indent Quantity"
                             rules={[
                                 { required: true, message: 'Please enter indent quantity' },
+                                {
+                                    validator: (_, value) => {
+                                        if (value && value < 1) {
+                                            return Promise.reject(new Error('Quantity must be at least 1'));
+                                        }
+                                        return Promise.resolve();
+                                    }
+                                },
                             ]}
                         >
-                            <Input
+                            <InputNumber
                                 ref={quantityInputRef}
                                 autoFocus
                                 style={{ width: '100%' }}
-                                placeholder="e.g., 10 bot, 5x30's, 2 carton"
+                                placeholder="Enter quantity"
+                                min={0}
+                                size="large"
+                                onChange={handleQuantityChange}
                             />
                         </Form.Item>
 
@@ -443,7 +466,7 @@ const IndentModal = ({ drug, visible, onClose, onSuccess, onDrugUpdate }) => {
                         </Form.Item>
                     </Form>
                 </Space>
-            </Modal>
+            </Drawer>
 
             {/* Edit Drug Modal */}
             <Modal

@@ -209,8 +209,8 @@ const CartPage = () => {
         setHasChanges(true);
     };
 
-    const handleQuantityChange = (e) => {
-        setEditQuantity(e.target.value);
+    const handleQuantityChange = (value) => {
+        setEditQuantity(value);
         setHasChanges(true);
     };
 
@@ -221,13 +221,19 @@ const CartPage = () => {
     };
 
     const saveQuickUpdates = async () => {
+        // Validate quantity before saving
+        if (!editQuantity || editQuantity === 0 || editQuantity === '0') {
+            message.error('Indent quantity cannot be 0 or empty. Please enter a valid quantity.');
+            return;
+        }
+
         try {
             // Update inventory item details
             const { error: inventoryError } = await supabase
                 .from('inventory_items')
                 .update({
-                    max_qty: editMaxQty,
-                    balance: editBalance,
+                    max_qty: editMaxQty === '' ? null : editMaxQty,
+                    balance: editBalance === '' ? null : editBalance,
                     indent_source: editIndentSource,
                     remarks: editRemarks,
                     is_short_exp: editIsShortExp,
@@ -278,160 +284,116 @@ const CartPage = () => {
 
     const generatePDFDocument = (source, items) => {
         // 1. Initialize Landscape PDF
-        const doc = new jsPDF({ orientation: 'landscape' });
-        const pageWidth = doc.internal.pageSize.getWidth(); // ~297mm
-        const pageHeight = doc.internal.pageSize.getHeight(); // ~210mm
-        const halfWidth = pageWidth / 2;
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        let yPosition = 15;
 
-        // 2. Draw Dotted Line in the middle for cutting
-        doc.setLineWidth(0.2);
-        doc.setLineDash([1, 1], 0); // 1mm dash, 1mm space
-        doc.setDrawColor(150);
-        doc.line(halfWidth, 5, halfWidth, pageHeight - 5); // Coordinate x,y,x,y start to end point
-        doc.setLineDash([]); // Reset to solid lines for the rest of the doc
-        doc.setDrawColor(0); // Reset to solid black
+        // Header - Form Reference
+        doc.setFontSize(8);
+        doc.setFont(undefined, 'italic');
+        doc.text('Pekeliling Perbendaharaan Malaysia', 7, yPosition);
+        doc.setFont(undefined, 'normal');
+        doc.text('AM 6.5 LAMPIRAN B', pageWidth / 2, yPosition, { align: 'center' });
+        doc.text('KEW.PS-8', pageWidth - 7, yPosition, { align: 'right' });
+        yPosition += 10;
 
-        // Generate the page content twice on the SAME page (Left side, then Right side)
-        const copies = ['SALINAN PEMESAN', 'SALINAN PENGELUAR'];
 
-        copies.forEach((copyLabel, copyIndex) => {
-            // 3. Calculate X Offset based on which copy we are drawing
-            // Index 0 (Left) = 0 offset
-            // Index 1 (Right) = 148.5 offset
-            const xOffset = copyIndex * halfWidth;
+        // Title
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        const title = `BORANG PERMOHONAN STOK UBAT (${source})`;
+        doc.text(title, pageWidth / 2, yPosition, { align: 'center' });
+        yPosition += 5;
 
-            // Define local left and right bounds for this specific panel
-            const panelLeft = xOffset;
-            const panelRight = xOffset + halfWidth;
-            const panelCenter = xOffset + (halfWidth / 2);
+        // Table Data mapping
+        const tableData = items.map((item, idx) => [
+            (idx + 1).toString(),
+            (item.inventory_items?.name || '') + (item.inventory_items?.pku ? ` | ${item.inventory_items.pku}` : ''),
+            item.requested_qty || 0,
+            '',
+            '',
+            '',
+        ]);
 
-            let yPosition = 15;
+        // 4. AutoTable Configuration
+        autoTable(doc, {
+            startY: yPosition,
+            head: [[
+                { content: 'Bil', styles: { halign: 'center' } },
+                { content: 'Perihal stok', styles: { halign: 'center' } },
+                { content: 'Kuantiti', styles: { halign: 'center' } },
+                { content: 'Catatan', styles: { halign: 'center' } },
+                { content: 'Kuantiti Diluluskan', styles: { halign: 'center' } },
+                { content: 'Catatan', styles: { halign: 'center' } },
+            ]],
+            body: tableData,
+            theme: 'grid',
+            styles: {
+                fontSize: 10, // Slightly smaller font to accommodate more columns
+                cellPadding: 3,
+            },
+            headStyles: {
+                fillColor: [255, 255, 255],
+                textColor: [0, 0, 0],
+                fontStyle: 'bold',
+                lineWidth: 0.2,
+                lineColor: [0, 0, 0],
+            },
+            bodyStyles: {
+                lineWidth: 0.2,
+                lineColor: [0, 0, 0],
+                minCellHeight: 9, // Added height for manual writing room
+            },
+            // 2. Adjusted widths: First 4 cols ~65%, Last 2 cols ~35%
+            columnStyles: {
+                0: { cellWidth: 11, halign: 'center' }, // Bil
+                1: { cellWidth: 78 },                  // Perihal
+                2: { cellWidth: 29, halign: 'center' }, // Kuantiti
+                3: { cellWidth: 25 },                  // Catatan (Req)
+                4: { cellWidth: 29, halign: 'center' }, // Kuantiti Diluluskan
+                5: { cellWidth: 25 },                  // Catatan (Appr)
+            },
+            margin: { bottom: 50, left: 7, right: 7 },
 
-            // Set text color to true black for all text
-            doc.setTextColor(0, 0, 0);
+            // 3. Hook to draw the Thick Border
+            didDrawCell: function (data) {
+                // Check if this is the 'Kuantiti Diluluskan' column (Index 4)
+                if (data.column.index === 4) {
+                    doc.setLineWidth(0.8); // Set thick line
+                    doc.line(data.cell.x, data.cell.y, data.cell.x, data.cell.y + data.cell.height);
+                    doc.setLineWidth(0.2); // Reset to default
+                }
+            },
 
-            // Copy Label
-            doc.setFontSize(9);
-            doc.setFont(undefined, 'bold');
-            // Position relative to the panel's right edge
-            doc.text(copyLabel, panelRight - 7, yPosition, { align: 'right' });
-            yPosition += 5;
-
-            // Header - Form Reference
-            doc.setFontSize(8);
-            doc.setFont(undefined, 'italic');
-            doc.text('Pekeliling Perbendaharaan Malaysia', panelLeft + 7, yPosition);
-            doc.setFont(undefined, 'normal');
-            doc.text('AM 6.5 LAMPIRAN B', panelCenter, yPosition, { align: 'center' });
-            doc.text('KEW.PS-8', panelRight - 7, yPosition, { align: 'right' });
-            yPosition += 10;
-
-            // Title
-            doc.setFontSize(10); // Slightly smaller title to fit
-            doc.setFont(undefined, 'bold');
-            const title = `BORANG PERMOHONAN STOK UBAT (${source})`;
-            doc.text(title, panelCenter, yPosition, { align: 'center' });
-            yPosition += 5;
-
-            // Table Data mapping
-            const tableData = items.map((item, idx) => [
-                (idx + 1).toString(),
-                (item.inventory_items?.name || '') + (item.inventory_items?.pku ? ` | ${item.inventory_items.pku}` : ''),
-                item.requested_qty || 0,
-                '',
-                '',
-                '',
-            ]);
-
-            // 4. AutoTable Configuration
-            autoTable(doc, {
-                startY: yPosition,
-                head: [[
-                    { content: 'Bil', styles: { halign: 'center' } },
-                    { content: 'Perihal stok', styles: { halign: 'center' } },
-                    { content: 'Qty', styles: { halign: 'center' } }, // Shortened header
-                    { content: 'Catatan', styles: { halign: 'center' } },
-                    { content: 'Lulus', styles: { halign: 'center' } }, // Shortened header
-                    { content: 'Catatan', styles: { halign: 'center' } },
-                ]],
-                body: tableData,
-                theme: 'grid',
-                styles: {
-                    fontSize: 8, // Reduced font size for half-page width
-                    cellPadding: 2,
-                    textColor: [0, 0, 0],
-                    lineColor: [0, 0, 0],
-                    lineWidth: 0.1,
-                },
-                headStyles: {
-                    fillColor: [255, 255, 255],
-                    textColor: [0, 0, 0],
-                    fontStyle: 'bold',
-                    lineWidth: 0.1,
-                    lineColor: [0, 0, 0],
-                },
-                bodyStyles: {
-                    minCellHeight: 8,
-                },
-                // 5. Dynamic Margins to constrain table to Left or Right side
-                margin: {
-                    top: 15,
-                    // If Copy 0 (Left): Left Margin 7, Right Margin (HalfWidth + 7)
-                    // If Copy 1 (Right): Left Margin (HalfWidth + 7), Right Margin 7
-                    left: panelLeft + 5,
-                    right: (pageWidth - panelRight) + 5
-                },
-                // Adjusted columns for narrower width
-                columnStyles: {
-                    0: { cellWidth: 8, halign: 'center' },  // Bil
-                    1: { cellWidth: 'auto' },               // Perihal (Auto expand)
-                    2: { cellWidth: 16, halign: 'center' }, // Kuantiti
-                    3: { cellWidth: 15 },                   // Catatan
-                    4: { cellWidth: 12, halign: 'center' }, // Lulus
-                    5: { cellWidth: 15 },                   // Catatan
-                },
-                didDrawCell: function (data) {
-                    if (data.column.index === 4) {
-                        doc.setLineWidth(0.6);
-                        doc.line(data.cell.x, data.cell.y, data.cell.x, data.cell.y + data.cell.height);
-                        doc.setLineWidth(0.1);
-                    }
-                },
-            });
-
-            // Signatures
-            const finalY = pageHeight - 25; // Moved up slightly
-            doc.setFontSize(7); // Smaller font for signature area
-            doc.setFont(undefined, 'normal');
-
-            // 6. Signature Positioning adjusted for Left/Right panels
-
-            // Left Signature (Pemohon)
-            const leftX = panelLeft + 10;
-            doc.text('Pemohon', leftX, finalY);
-            doc.text('(Tandatangan)', leftX, finalY + 10);
-            doc.text('Nama : ', leftX, finalY + 13);
-            doc.text('Jawatan : ', leftX, finalY + 16);
-            doc.text(`Tarikh : ${new Date().toLocaleDateString('en-GB')}`, leftX, finalY + 19);
-
-            // Middle Signature (Pegawai Pelulus)
-            // Positioned roughly in the center of the PANEL
-            const middleX = panelCenter - 10;
-            doc.text('Pegawai Pelulus', middleX, finalY);
-            doc.text('(Tandatangan)', middleX, finalY + 10);
-            doc.text('Nama :', middleX, finalY + 13);
-            doc.text('Jawatan :', middleX, finalY + 16);
-            doc.text(`Tarikh : ${new Date().toLocaleDateString('en-GB')}`, middleX, finalY + 19);
-
-            // Right Signature (Penerima)
-            // Positioned near right edge of the PANEL
-            const rightX = panelRight - 30;
-            doc.text('Penerima', rightX, finalY);
-            doc.text('(Tandatangan)', rightX, finalY + 10);
-            doc.text('Nama : ', rightX, finalY + 13);
-            doc.text('Jawatan : ', rightX, finalY + 16);
-            doc.text(`Tarikh : ${new Date().toLocaleDateString('en-GB')}`, rightX, finalY + 19);
         });
+
+        // Signatures (Moved outside autoTable to show only on last page)
+        const finalY = pageHeight - 50;
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'normal');
+
+        const leftX = 15;
+        doc.text('Pemohon', leftX, finalY);
+        doc.text('(Tandatangan)', leftX, finalY + 15);
+        doc.text('Nama : ', leftX, finalY + 20);
+        doc.text('Jawatan : ', leftX, finalY + 25);
+        doc.text('Tarikh :', leftX, finalY + 30);
+
+        const middleX = pageWidth / 2 - 20;
+        doc.text('Pegawai Pelulus', middleX, finalY);
+        doc.text('(Tandatangan)', middleX, finalY + 15);
+        doc.text('Nama :', middleX, finalY + 20);
+        doc.text('Jawatan :', middleX, finalY + 25);
+        doc.text('Tarikh :', middleX, finalY + 30);
+
+        const rightX = pageWidth - 60;
+        doc.text('Penerima', rightX, finalY);
+        doc.text('(Tandatangan)', rightX, finalY + 15);
+        doc.text('Nama :  ', rightX, finalY + 20);
+        doc.text('Jawatan :  ', rightX, finalY + 25);
+        doc.text('Tarikh :', rightX, finalY + 30);
+
         return doc;
     };
 
@@ -697,11 +659,18 @@ const CartPage = () => {
                                                 <List.Item.Meta
                                                     title={
                                                         <Space>
-                                                            <Tag color={getStdKtColor(item.inventory_items?.std_kt)}>
-                                                                {item.inventory_items?.std_kt}
-                                                            </Tag>
+                                                            {item.inventory_items?.puchase_type && (
+                                                                <Tag color={getPuchaseTypeColor(item.inventory_items?.puchase_type)} style={{ margin: 0, fontSize: '11px' }}>
+                                                                    {item.inventory_items?.puchase_type}
+                                                                </Tag>
+                                                            )}
+                                                            {item.inventory_items?.std_kt && (
+                                                                <Tag color={getStdKtColor(item.inventory_items?.std_kt)} style={{ margin: 0, fontSize: '11px' }}>
+                                                                    {item.inventory_items?.std_kt}
+                                                                </Tag>
+                                                            )}
                                                             <Text strong>{item.inventory_items?.name}</Text>
-                                                            <Text >| {item.inventory_items?.pku}</Text>
+                                                            {item.inventory_items?.pku && (<Text >| {item.inventory_items?.pku}</Text>)}
                                                         </Space>
                                                     }
                                                     description={
@@ -859,12 +828,14 @@ const CartPage = () => {
                         <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
                             Indent Quantity
                         </Text>
-                        <Input
+                        <InputNumber
                             autoFocus
                             value={editQuantity}
                             onChange={handleQuantityChange}
                             style={{ width: '100%' }}
                             placeholder="e.g., 10 bot, 5x30's, 2 carton"
+                            min={0}
+                            size="large"
                         />
                     </div>
 
@@ -875,11 +846,11 @@ const CartPage = () => {
                                 <Button
                                     onClick={saveQuickUpdates}
                                     type="default"
-                                    style={{ borderColor: '#52c41a', color: '#52c41a' }}
-                                >
+                                    style={{ borderColor: '#52c41a', color: '#52c41a' }}>
                                     Save Changes
                                 </Button>
                             )}
+
                             <Button onClick={handleCloseEdit}>Cancel</Button>
                         </Space>
                     </div>

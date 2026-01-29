@@ -460,19 +460,21 @@ const IndentListPage = () => {
                                                 <List.Item.Meta
                                                     title={
                                                         <Space>
+                                                            <Tag color={getStdKtColor(item.inventory_items?.std_kt)}>
+                                                                {item.inventory_items?.std_kt}
+                                                            </Tag>
                                                             <Text strong>{item.inventory_items?.name}</Text>
+                                                            <Text >| {item.inventory_items?.pku}</Text>
                                                         </Space>
                                                     }
                                                     description={
                                                         <Space direction="vertical" size="small">
                                                             <Space wrap>
-                                                                <Tag color={getStdKtColor(item.inventory_items?.std_kt)}>
-                                                                    {item.inventory_items?.std_kt}
-                                                                </Tag>
+
                                                             </Space>
                                                             <Text>Quantity: <Text strong>{item.requested_qty}</Text></Text>
-                                                            <Text type="secondary" style={{ fontSize: 11 }}>
-                                                                Requested: {dayjs(item.created_at).format('DD/MM/YYYY HH:mm')}
+                                                            <Text type="secondary" style={{ fontSize: 12 }}>
+                                                                Requested Date: {dayjs(item.created_at).format('DD/MM/YYYY HH:mm')}
                                                             </Text>
                                                         </Space>
                                                     }
